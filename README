@@ -1,0 +1,71 @@
+Tyler Harwood
+COS 301 - Programming Languages
+Dr. Chawathe
+8 March 2023
+
+
+Running:
+	To run the calculator:
+	
+		python3 calcx.py
+
+	or if python 3.10 is installed under the 'python' alias:
+
+		python calcx.py
+
+	The compiled assembly code is printed to std output,
+	so the following should produce an executable:
+
+		python3 calcx.py >filename
+
+
+Desc:
+	The 'calcx.py' python program is an extension of the
+	 'calc.py' program found in the PLY documentation.
+	It uses the PLY library to parse plain text in a  
+	simple calculator language from std. input.
+
+	While the first assignment was to write an interpretor,
+	this version instead compiles the calculator language
+	into the coco assembly language.
+	
+	Operators supported: 	add, subtract, multiply, divide
+				integer division, modulus,
+				negation.
+ 
+	Parenthesizations are supported
+
+	Lists: Not yet supported
+		
+		
+Grammar: 
+	This is my grammar as interpreted by PLY. Of note is that
+	I had the strange idea to make all numbers actually single-
+	element lists. This caused some problems later on, and there 
+	is certainly a more elegant way it could be refactored, but
+	it does get the job done.
+
+	Rule 0     S' -> statement
+	Rule 1     statement -> NAME = expression
+	Rule 2     statement -> expression
+	Rule 3     expression -> expression + expression
+	Rule 4     expression -> expression - expression
+	Rule 5     expression -> expression * expression
+	Rule 6     expression -> expression / expression
+	Rule 7     expression -> expression % expression
+	Rule 8     expression -> - expression
+	Rule 9     expression -> ( expression )
+	Rule 10    expression -> ( )
+	Rule 11    expression -> NUMBER
+	Rule 12    expression -> NAME
+	Rule 13    expression -> expression / / expression
+	Rule 14    expression -> ( list )
+	Rule 15    expression -> ( list expression )
+	Rule 16    list -> expression ,
+	Rule 17    list -> list expression ,
+	
+
+Sources:
+	All Credit to Dr. Chawathe and the PLY documentation website for the
+	original calc.py program that this project is originally based on.
+

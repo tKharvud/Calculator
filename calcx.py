@@ -2,7 +2,7 @@
 # Tyler Harwood     ##
 # COS 301           ##
 # Dr. Chawathe      ##
-# 23 February 2023  ##
+# 8 March 2023      ##
 ######################
 
 ##################################################
@@ -14,6 +14,22 @@ import sys
 sys.path.insert(0, "../..")
 if sys.version_info[0] >= 3:
     raw_input = input
+
+###########################################################
+#####   Boilerplate data    ###############################
+###########################################################
+
+# List of constants
+constants = [None]
+
+# List of global functions
+globalFunctions = ("print",)
+
+# Initial string we will concat to, then concat to the boilerplate.
+outStr = ""
+
+###########################################################
+
 
 # List of valid non-literals
 tokens = [
@@ -37,7 +53,7 @@ names = {}
 # Integer value assigned to token
 def t_NUMBER(t):
     r'\d+'
-    t.value = [int(t.value)]    
+    t.value = [int(t.value)]
     return t
 
 
@@ -66,7 +82,7 @@ precedence = [
     ('left', ','),
     ('left', '+', '-'),
     ('left', '*', '/', '%'),
-    ('right', 'UMINUS'),
+    ('right', 'UMINUS')
 ]
 
 
@@ -77,23 +93,22 @@ def p_statement_assign(p):
     'statement : NAME "=" expression'
     names[p[1]] = p[3]
 
+    global outStr
+    outStr = outStr + (f"STORE_FAST {list(names.keys()).index(p[1])}\n")
+    outStr = outStr + "LOAD_FAST 0\n"
+
 # Somewhat Synonymous with the above, just without a key.
 def p_expression_expr(p):
-    'statement : expression'
+    'statement : NAME'
 
-    if len(p[1]) > 1:
+    global outStr
 
-        if p[1][-1] is None:
-            p[1] = p[1][0:-1]
-            print(p[1])
-        else:
-            print(p[1])
+    outStr += "LOAD_FAST 0\n"
+    outStr += "LOAD_GLOBAL 0\n"
+    outStr += "ROT_TWO\n"
+    outStr += "CALL_FUNCTION 1\n"
+    outStr += "POP_TOP\n"
 
-    elif len(p[1]) == 1:
-        print(p[1][0])
-    
-    else:
-        print(tuple(p[1]))
 
 
 # Evaluation of expressions.
@@ -106,12 +121,16 @@ def p_binop(p):
                     | expression '%' expression'''
 
     p[0] = []
+
     if len(p[1]) >= len(p[3]):
         p[0] = list(p[1]).copy()
         domain = len(p[3])
     else:
         p[0] = list(p[3]).copy()
         domain = len(p[1])
+
+    #Declare global variables:
+    global outStr
 
     for i in range(domain):
 
@@ -120,25 +139,26 @@ def p_binop(p):
         if p[1][i] == None or p[3][i] == None:
             break
 
+        # Do the op.
         if p[2] == '+':
 
-            p[0][i] = p[1][i] + p[3][i] 
+            outStr += ("BINARY_ADD\n")
 
         elif p[2] == '-':
 
-            p[0][i] = p[1][i] - p[3][i] 
+            outStr += ("BINARY_SUBTRACT\n")
 
         elif p[2] == '*':
 
-            p[0][i] = p[1][i] * p[3][i] 
+            outStr += ("BINARY_MULTIPLY\n") 
 
         elif p[2] == '/':
 
-            p[0][i] = p[1][i] / p[3][i] 
+            outStr += ("BINARY_DIVIDE\n") 
             
         elif p[2] == '%':
 
-            p[0][i] = p[1][i] % p[3][i] 
+            outStr += ("BINARY_MODULO\n") 
 
     if len(p[0]) > 1: p[0] = tuple(p[0])
             
@@ -147,14 +167,14 @@ def p_binop(p):
 # Unary minus operator, changes sign of an expr
 def p_expression_uminus(p):
     "expression : '-' expression %prec UMINUS"
-
-    p[0] = list(p[2]).copy()
-    for i in range( len(p[2]) ):
-        
-        if p[0][i] != None:
-            p[0][i] =  -p[2][i]
-
-    p[0] = tuple(p[0])
+    p[0] = p[2]
+    global constants
+    global outStr
+    constants.append(0)
+    outStr += (f"LOAD_CONST {len(constants)-1}\n")
+    outStr += ("ROT_TWO\n")
+    outStr += ("BINARY_SUBTRACT\n")
+    
 
 # Defines parenthesization
 def p_expression_group(p):
@@ -171,6 +191,15 @@ def p_expression_group(p):
 def p_expression_number(p):
     "expression : NUMBER"
     p[0] = p[1]
+
+    global constants
+    global outStr
+    if constants.count(p[1][0]) == 0:
+        constants += (p[1])
+        outStr += (f"LOAD_CONST {len(constants)-1}\n")
+    else:
+        outStr += (f"LOAD_CONST {constants.index(p[1][0])}\n")
+
 
 def p_expression_name(p):
     "expression : NAME"
@@ -208,7 +237,7 @@ def p_expression_Div(p):
         p[0] = list(p[4]).copy()
         domain = len(p[1])
 
-    
+    global outStr
     for i in range(domain):
 
         # Need this for singleton lists because of silly implementation
@@ -218,7 +247,7 @@ def p_expression_Div(p):
 
         if p[2] == '/' and p[3] == '/':
 
-            p[0][i] = p[1][i] // p[4][i]
+            outStr += ("BINARY_TRUEDIV\n") 
 
 
         #Assign to tuple on the way out
@@ -288,9 +317,40 @@ if not sys.stdin.isatty():
 if sys.stdin.isatty():
     while 1:
         try:
-            s = raw_input('calc > ')
+            s = raw_input()
         except EOFError:
             break
         if not s:
             continue
         yacc.parse(s)
+
+# Write boilerplate, concat to output string,
+# then print to std out.
+
+boilerPlate = 'Functions: main/0\n'
+# Add Constants
+boilerPlate = boilerPlate + ('Constants: ')
+if len(constants) != 1:
+    for i in range(len(constants)-1):
+        boilerPlate = boilerPlate + (f"{constants[i]}, ")
+boilerPlate += (f'{constants[-1]}\n')
+
+# Add Locals
+boilerPlate += ("Locals: ")
+localVars = list(names.keys())
+if len(localVars) != 1:
+    for key in localVars:
+        boilerPlate += (f"{key}, ")
+boilerPlate += (f'{localVars[-1]}\n')
+
+# Add Globals
+boilerPlate += ("Globals: ")
+if len(globalFunctions) != 1:
+    for i in range(len(globalFunctions)-1):
+        boilerPlate += (f"{globalFunctions[i]}, ")
+boilerPlate += (f'{globalFunctions[-1]}\n')
+
+outStr = boilerPlate + 'BEGIN\n' + outStr
+outStr = outStr + 'LOAD_CONST 0\n' + 'RETURN_VALUE\n'+'END'
+
+print(outStr)
